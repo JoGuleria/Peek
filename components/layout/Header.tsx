@@ -8,6 +8,16 @@ export async function Header() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  let pendingRequestsCount = 0;
+  if (user) {
+    const { count } = await supabase
+      .from("connections")
+      .select("id", { count: "exact", head: true })
+      .eq("to_user_id", user.id)
+      .eq("status", "pending");
+    pendingRequestsCount = count ?? 0;
+  }
+
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -17,7 +27,7 @@ export async function Header() {
         >
           Peek
         </Link>
-        <HeaderNav hasUser={!!user} />
+        <HeaderNav hasUser={!!user} pendingRequestsCount={pendingRequestsCount} />
       </div>
     </header>
   );

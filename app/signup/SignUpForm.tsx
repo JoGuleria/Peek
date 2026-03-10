@@ -15,6 +15,7 @@ export function SignUpForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmEmailSent, setConfirmEmailSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +27,7 @@ export function SignUpForm() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/profile/setup`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -37,9 +38,29 @@ export function SignUpForm() {
       return;
     }
 
-    // New user: send them to profile setup to pick role, name, industry, etc.
-    router.push("/profile/setup");
-    router.refresh();
+    // If email confirmation is enabled in Supabase, user must click the link in their email first.
+    // Otherwise they're signed in and we send them to profile setup.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      router.push("/profile/setup");
+      router.refresh();
+    } else {
+      setConfirmEmailSent(true);
+    }
+  }
+
+  if (confirmEmailSent) {
+    return (
+      <div className="mt-6 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4 text-center">
+        <p className="font-medium text-white">Check your email</p>
+        <p className="mt-1 text-sm text-zinc-400">
+          We sent a confirmation link to <strong>{email}</strong>. Click the link to confirm your account, then you can finish setting up your profile.
+        </p>
+        <p className="mt-3 text-xs text-zinc-500">
+          Didn’t get it? Check spam or try signing up again.
+        </p>
+      </div>
+    );
   }
 
   return (

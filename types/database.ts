@@ -5,6 +5,14 @@
 
 export type UserRole = "job_seeker" | "mentor" | "recruiter";
 
+/** Valid options for "what I'm looking for" (multiple allowed) */
+export type LookingForOption =
+  | "mentorship"
+  | "job opportunities"
+  | "collaborations"
+  | "networking"
+  | "friendship";
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -13,6 +21,12 @@ export interface Profile {
   industry: string;
   skills: string[];
   video_url: string | null;
+  /** Short bio, max 150 characters */
+  bio?: string | null;
+  /** What I'm looking for (multiple selections) */
+  looking_for?: LookingForOption[] | null;
+  /** Interests outside of work (tags) */
+  interests?: string[] | null;
   created_at: string;
   updated_at: string;
 }

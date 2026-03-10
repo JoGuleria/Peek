@@ -11,12 +11,26 @@ export default async function BrowsePage() {
   const supabase = await createClient();
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("id, user_id, role, display_name, industry, skills, video_url, updated_at")
+    .select("id, user_id, role, display_name, industry, skills, video_url, bio, looking_for, interests, updated_at")
     .order("created_at", { ascending: false });
 
   if (error) {
-    // RLS or network error: show empty feed. Run migration 003 if browse fails when not logged in.
     console.error("Browse profiles error:", error);
+  }
+
+  // Logged-in user's outgoing connection requests (to_user_id list) so we can show "Pending"
+  let currentUserId: string | null = null;
+  let pendingToUserIds: string[] = [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    currentUserId = user.id;
+    const { data: connections } = await supabase
+      .from("connections")
+      .select("to_user_id")
+      .eq("from_user_id", user.id);
+    pendingToUserIds = (connections ?? []).map((c) => c.to_user_id);
   }
 
   return (
@@ -27,7 +41,11 @@ export default async function BrowsePage() {
           Scroll through intros. Use filters to narrow by role, industry, or
           skills.
         </p>
-        <BrowseFeed initialProfiles={profiles ?? []} />
+        <BrowseFeed
+          initialProfiles={profiles ?? []}
+          currentUserId={currentUserId}
+          initialPendingToUserIds={pendingToUserIds}
+        />
       </div>
     </main>
   );

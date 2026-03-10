@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LinkButton } from "@/components/ui/LinkButton";
 
-export function HeaderNav({ hasUser }: { hasUser: boolean }) {
+export function HeaderNav({
+  hasUser,
+  pendingRequestsCount = 0,
+}: {
+  hasUser: boolean;
+  pendingRequestsCount?: number;
+}) {
   const router = useRouter();
 
   async function handleLogOut() {
@@ -23,6 +29,26 @@ export function HeaderNav({ hasUser }: { hasUser: boolean }) {
           className="text-sm text-zinc-400 hover:text-white"
         >
           Browse
+        </Link>
+        <Link
+          href="/connections"
+          className="relative inline-flex items-center text-sm text-zinc-400 hover:text-white"
+        >
+          Requests
+          {pendingRequestsCount > 0 && (
+            <span
+              className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white"
+              aria-label={`${pendingRequestsCount} pending requests`}
+            >
+              {pendingRequestsCount > 99 ? "99+" : pendingRequestsCount}
+            </span>
+          )}
+        </Link>
+        <Link
+          href="/connections/accepted"
+          className="text-sm text-zinc-400 hover:text-white"
+        >
+          Connections
         </Link>
         <Link
           href="/profile"

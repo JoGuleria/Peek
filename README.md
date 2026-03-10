@@ -58,9 +58,20 @@ Open [http://localhost:3000](http://localhost:3000).
 | `types/database.ts` | Shared types for profiles and connections |
 | `supabase/migrations/` | SQL schema (profiles, connections, RLS) |
 
+## Email confirmation (optional)
+
+To require users to confirm their email before signing in:
+
+1. In Supabase: **Authentication** → **Providers** → **Email** → turn on **Confirm email**.
+2. In **Authentication** → **URL Configuration**:
+   - **Site URL**: your app URL (e.g. `https://yoursite.vercel.app` or `http://localhost:3000`).
+   - **Redirect URLs**: add `https://yoursite.vercel.app/auth/callback` (and `http://localhost:3000/auth/callback` for local dev).
+3. (Optional) In **Authentication** → **Email Templates** → **Confirm signup**, you can set the confirmation link to use your callback, e.g. `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email`. If the default template already redirects to your Site URL with token params, the app’s `/auth/callback` route will handle it.
+
+After confirming, users are sent to `/profile/setup`.
+
 ## Next steps
 
-- **Auth**: Enable email confirmation in Supabase if you want verified emails.
 - **Video upload**: Use Supabase Storage to upload 15s intros and save the public URL in `profiles.video_url`.
 - **Connect**: In `BrowseFeed`, get the current user and insert a row into `connections` when they click Connect.
 - **Profile page**: Add `/profile/[userId]` or `/profile/me` to view and edit the current user’s profile.
