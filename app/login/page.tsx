@@ -15,17 +15,22 @@ export default function LoginPage() {
           Welcome back. Sign in to continue.
         </p>
         <LoginForm />
-        <p className="mt-6 text-center text-sm text-zinc-500">
-          <Link href="/forgot-password" className="text-cyan-400 hover:underline">
-            Forgot password?
-          </Link>
-        </p>
-        <p className="mt-3 text-center text-sm text-zinc-500">
+        <div className="mt-6 space-y-2 text-center">
+          <p className="text-sm">
+            <Link
+              href="/forgot-password"
+              className="font-medium text-cyan-400 underline hover:text-cyan-300"
+            >
+              Forgot password?
+            </Link>
+          </p>
+          <p className="text-sm text-zinc-500">
           Don’t have an account?{" "}
           <Link href="/signup" className="text-cyan-400 hover:underline">
             Sign up
           </Link>
-        </p>
+          </p>
+        </div>
       </div>
     </main>
   );
