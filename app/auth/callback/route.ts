@@ -2,9 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Email confirmation callback. Supabase redirects here with ?token_hash=...&type=email
- * (or type=signup). We verify the OTP, set the session cookies, and redirect to profile setup.
- * Enable "Confirm email" in Supabase Auth → Providers → Email and set Site URL / Redirect URLs.
+ * Auth callback. Supabase redirects here with ?token_hash=...&type=...
+ * - type=email|signup: email confirmation → redirect to profile setup
+ * - type=recovery: password reset link → redirect to /reset-password to set new password
+ * Enable "Confirm email" and set Site URL / Redirect URLs in Supabase Auth.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -15,7 +16,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=missing_params", request.url));
   }
 
-  const response = NextResponse.redirect(new URL("/profile/setup", request.url));
+  const redirectTo =
+    type === "recovery"
+      ? new URL("/reset-password", request.url)
+      : new URL("/profile/setup", request.url);
+  const response = NextResponse.redirect(redirectTo);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,7 +40,7 @@ export async function GET(request: NextRequest) {
   );
 
   const { error } = await supabase.auth.verifyOtp({
-    type: type as "email" | "signup",
+    type: type as "email" | "signup" | "recovery",
     token_hash: tokenHash,
   });
 

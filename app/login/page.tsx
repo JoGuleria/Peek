@@ -16,6 +16,11 @@ export default function LoginPage() {
         </p>
         <LoginForm />
         <p className="mt-6 text-center text-sm text-zinc-500">
+          <Link href="/forgot-password" className="text-cyan-400 hover:underline">
+            Forgot password?
+          </Link>
+        </p>
+        <p className="mt-3 text-center text-sm text-zinc-500">
           Don’t have an account?{" "}
           <Link href="/signup" className="text-cyan-400 hover:underline">
             Sign up

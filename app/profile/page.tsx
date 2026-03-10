@@ -2,7 +2,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileSetupForm } from "./setup/ProfileSetupForm";
 
-export default async function ProfilePage() {
+type PageProps = {
+  searchParams: Promise<{ saved?: string }> | { saved?: string };
+};
+
+export default async function ProfilePage({ searchParams }: PageProps) {
+  const params = typeof searchParams.then === "function" ? await searchParams : searchParams;
+  const initialSaved = params.saved === "1";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,6 +35,7 @@ export default async function ProfilePage() {
         <ProfileSetupForm
           initialProfile={profile ?? undefined}
           redirectAfterSave="/profile"
+          initialSaved={initialSaved}
         />
       </div>
     </main>

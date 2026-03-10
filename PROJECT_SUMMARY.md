@@ -57,14 +57,27 @@ One role per user; stored in `profiles.role`.
 
 - Form: email, password
 - On submit: `supabase.auth.signInWithPassword()`; on success → `/browse`
-- Link to Sign up at bottom
+- “Forgot password?” link → `/forgot-password`; Link to Sign up at bottom
+
+**Forgot password (`/forgot-password`)**
+
+- Form: email only
+- On submit: `supabase.auth.resetPasswordForEmail(email, { redirectTo: origin + '/auth/callback' })`
+- Success: “Check your email” message; user clicks link in email → `/auth/callback?type=recovery&token_hash=...` → callback verifies OTP and redirects to `/reset-password`
+
+**Reset password (`/reset-password`)**
+
+- Shown after user clicks the reset link in email (session established by callback)
+- Requires auth; if no session (e.g. direct visit), redirect to `/login?error=session_expired`
+- Form: new password, confirm password (min 6 chars); on submit: `supabase.auth.updateUser({ password })`; on success → `/browse`
+- Link “Back to log in” at bottom
 
 **Auth callback (`/auth/callback`)**
 
-- GET route handler for email confirmation
-- Expects query params: `token_hash`, `type` (e.g. `email` or `signup`)
+- GET route handler for email confirmation and password reset
+- Expects query params: `token_hash`, `type` (`email`, `signup`, or `recovery`)
 - Uses `supabase.auth.verifyOtp({ type, token_hash })` to establish session and set cookies
-- On success → redirect to `/profile/setup`
+- On success: if `type === 'recovery'` → redirect to `/reset-password`; else → redirect to `/profile/setup`
 - On missing params or error → redirect to `/login?error=...`
 - Requires Supabase redirect URL to include `/auth/callback`
 
@@ -252,6 +265,12 @@ peek/
 │   ├── login/
 │   │   ├── page.tsx
 │   │   └── LoginForm.tsx
+│   ├── forgot-password/
+│   │   ├── page.tsx
+│   │   └── ForgotPasswordForm.tsx
+│   ├── reset-password/
+│   │   ├── page.tsx
+│   │   └── ResetPasswordForm.tsx
 │   ├── profile/
 │   │   ├── page.tsx              # My profile (server: fetch own profile)
 │   │   ├── setup/
@@ -318,6 +337,11 @@ peek/
 
 - **Custom “from” domain in Resend** — App uses `onboarding@resend.dev`; add and verify your domain in Resend to use a custom from address
 - **Block or report** — No blocking or reporting flows
+
+## Password Reset (Supabase)
+
+- In **Supabase Dashboard → Authentication → URL Configuration**, ensure Redirect URLs include `https://<your-domain>/auth/callback` (and `http://localhost:3000/auth/callback` for dev). Same as email confirmation.
+- Optional: **Auth → Email Templates → Reset password** — set the link to `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery` if you want to control the URL; Supabase default may already use Site URL with these params.
 
 ---
 

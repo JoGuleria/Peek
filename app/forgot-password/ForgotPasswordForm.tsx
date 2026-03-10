@@ -1,21 +1,18 @@
 "use client";
 
 /**
- * Client-side login form: email + password, submit to Supabase Auth.
- * Redirects to /browse on success (or /profile/setup if no profile).
+ * Forgot password form: email only. Sends reset link via Supabase.
+ * User receives email and clicks link → /auth/callback?type=recovery → /reset-password.
  */
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-export function LoginForm() {
-  const router = useRouter();
+export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,22 +20,34 @@ export function LoginForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email,
-      password,
-    });
+      { redirectTo: `${window.location.origin}/auth/callback` }
+    );
 
     setLoading(false);
 
-    if (signInError) {
-      setError(signInError.message);
+    if (resetError) {
+      setError(resetError.message);
       return;
     }
 
-    // Optional: check if profile exists and redirect to setup if not.
-    // For now we always send to browse; you can add a profile check here.
-    router.push("/browse");
-    router.refresh();
+    setSent(true);
+  }
+
+  if (sent) {
+    return (
+      <div className="mt-6 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4 text-center">
+        <p className="font-medium text-white">Check your email</p>
+        <p className="mt-1 text-sm text-zinc-400">
+          We sent a password reset link to <strong>{email}</strong>. Click the
+          link to set a new password.
+        </p>
+        <p className="mt-3 text-xs text-zinc-500">
+          Didn’t get it? Check spam or try again.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -66,37 +75,12 @@ export function LoginForm() {
           placeholder="you@example.com"
         />
       </div>
-      <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-zinc-300"
-        >
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-        />
-        <p className="mt-2 text-right">
-          <Link
-            href="/forgot-password"
-            className="text-sm text-cyan-400 hover:underline"
-          >
-            Forgot password?
-          </Link>
-        </p>
-      </div>
       <button
         type="submit"
         disabled={loading}
         className="w-full rounded-xl bg-cyan-500 py-2.5 font-semibold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
       >
-        {loading ? "Signing in…" : "Sign in"}
+        {loading ? "Sending…" : "Send reset link"}
       </button>
     </form>
   );

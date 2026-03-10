@@ -1,42 +1,46 @@
 "use client";
 
 /**
- * Client-side login form: email + password, submit to Supabase Auth.
- * Redirects to /browse on success (or /profile/setup if no profile).
+ * Set new password after clicking the reset link in email.
+ * User already has a session from the recovery OTP verification.
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-export function LoginForm() {
+export function ResetPasswordForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (signInError) {
-      setError(signInError.message);
+    if (password !== confirmPassword) {
+      setError("Passwords don’t match");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
       return;
     }
 
-    // Optional: check if profile exists and redirect to setup if not.
-    // For now we always send to browse; you can add a profile check here.
+    setLoading(true);
+
+    const supabase = createClient();
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+
+    setLoading(false);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
     router.push("/browse");
     router.refresh();
   }
@@ -52,26 +56,11 @@ export function LoginForm() {
         </div>
       )}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-          placeholder="you@example.com"
-        />
-      </div>
-      <div>
         <label
           htmlFor="password"
           className="block text-sm font-medium text-zinc-300"
         >
-          Password
+          New password
         </label>
         <input
           id="password"
@@ -79,24 +68,37 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          autoComplete="current-password"
+          autoComplete="new-password"
+          minLength={6}
           className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          placeholder="At least 6 characters"
         />
-        <p className="mt-2 text-right">
-          <Link
-            href="/forgot-password"
-            className="text-sm text-cyan-400 hover:underline"
-          >
-            Forgot password?
-          </Link>
-        </p>
+      </div>
+      <div>
+        <label
+          htmlFor="confirmPassword"
+          className="block text-sm font-medium text-zinc-300"
+        >
+          Confirm password
+        </label>
+        <input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          autoComplete="new-password"
+          minLength={6}
+          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          placeholder="Same as above"
+        />
       </div>
       <button
         type="submit"
         disabled={loading}
         className="w-full rounded-xl bg-cyan-500 py-2.5 font-semibold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
       >
-        {loading ? "Signing in…" : "Sign in"}
+        {loading ? "Updating…" : "Set new password"}
       </button>
     </form>
   );

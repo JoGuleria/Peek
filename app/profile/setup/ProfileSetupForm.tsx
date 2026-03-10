@@ -42,9 +42,11 @@ type InitialProfile = {
 export function ProfileSetupForm({
   initialProfile,
   redirectAfterSave = "/browse",
+  initialSaved = false,
 }: {
   initialProfile?: InitialProfile | null;
   redirectAfterSave?: string;
+  initialSaved?: boolean;
 } = {}) {
   const router = useRouter();
   const [role, setRole] = useState<UserRole>(initialProfile?.role ?? "job_seeker");
@@ -63,6 +65,7 @@ export function ProfileSetupForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(initialSaved);
   const [authChecked, setAuthChecked] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -80,6 +83,20 @@ export function ProfileSetupForm({
       setAuthChecked(true);
     });
   }, [router]);
+
+  useEffect(() => {
+    if (initialSaved) {
+      setSaved(true);
+      // Clear ?saved=1 from URL so "Saved" doesn't show on next visit
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("saved") === "1") {
+          url.searchParams.delete("saved");
+          window.history.replaceState({}, "", url.pathname + url.search);
+        }
+      }
+    }
+  }, [initialSaved]);
 
   useEffect(() => {
     if (initialProfile) {
@@ -149,7 +166,10 @@ export function ProfileSetupForm({
       return;
     }
 
-    router.push(redirectAfterSave);
+    setSaved(true);
+    const redirectUrl =
+      redirectAfterSave === "/profile" ? "/profile?saved=1" : redirectAfterSave;
+    router.push(redirectUrl);
     router.refresh();
   }
 
@@ -214,7 +234,10 @@ export function ProfileSetupForm({
             <button
               key={r.value}
               type="button"
-              onClick={() => setRole(r.value)}
+              onClick={() => {
+                setSaved(false);
+                setRole(r.value);
+              }}
               className={
                 "rounded-full px-4 py-2 text-sm font-medium transition-colors " +
                 (role === r.value
@@ -239,7 +262,10 @@ export function ProfileSetupForm({
           id="displayName"
           type="text"
           value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
+          onChange={(e) => {
+            setSaved(false);
+            setDisplayName(e.target.value);
+          }}
           required
           className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
           placeholder="How you want to be called"
@@ -257,7 +283,10 @@ export function ProfileSetupForm({
           id="industry"
           type="text"
           value={industry}
-          onChange={(e) => setIndustry(e.target.value)}
+          onChange={(e) => {
+            setSaved(false);
+            setIndustry(e.target.value);
+          }}
           className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
           placeholder="e.g. Tech, Healthcare, Design"
         />
@@ -273,7 +302,10 @@ export function ProfileSetupForm({
         <textarea
           id="bio"
           value={bio}
-          onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX_LENGTH))}
+          onChange={(e) => {
+            setSaved(false);
+            setBio(e.target.value.slice(0, BIO_MAX_LENGTH));
+          }}
           maxLength={BIO_MAX_LENGTH}
           rows={2}
           className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
@@ -308,6 +340,7 @@ export function ProfileSetupForm({
                   type="checkbox"
                   checked={checked}
                   onChange={() => {
+                    setSaved(false);
                     setLookingFor((prev) =>
                       prev.includes(opt.value)
                         ? prev.filter((x) => x !== opt.value)
@@ -334,7 +367,10 @@ export function ProfileSetupForm({
           id="interests"
           type="text"
           value={interestsInput}
-          onChange={(e) => setInterestsInput(e.target.value)}
+          onChange={(e) => {
+            setSaved(false);
+            setInterestsInput(e.target.value);
+          }}
           className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
           placeholder="e.g. Hiking, Music, Cooking"
         />
@@ -354,7 +390,10 @@ export function ProfileSetupForm({
           id="skills"
           type="text"
           value={skillsInput}
-          onChange={(e) => setSkillsInput(e.target.value)}
+          onChange={(e) => {
+            setSaved(false);
+            setSkillsInput(e.target.value);
+          }}
           className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
           placeholder="e.g. React, Product, Leadership"
         />
@@ -373,7 +412,10 @@ export function ProfileSetupForm({
         {userId && (
           <VideoRecorder
             userId={userId}
-            onUploadComplete={(url) => setVideoUrl(url)}
+            onUploadComplete={(url) => {
+              setSaved(false);
+              setVideoUrl(url);
+            }}
             currentVideoUrl={videoUrl || undefined}
           />
         )}
@@ -384,7 +426,13 @@ export function ProfileSetupForm({
           disabled={loading}
           className="w-full rounded-xl bg-cyan-500 py-2.5 font-semibold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
         >
-          {loading ? "Saving…" : initialProfile ? "Save changes" : "Save profile"}
+          {loading
+            ? "Saving…"
+            : saved
+              ? "Saved"
+              : initialProfile
+                ? "Save changes"
+                : "Save profile"}
         </button>
       </form>
       <div className="mt-8 border-t border-zinc-800 pt-6">
