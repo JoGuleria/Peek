@@ -91,6 +91,7 @@ One role per user; stored in `profiles.role`.
 - Same fields as setup; video section shows current video (if any) plus “Delete and re-record” / “Record a new video”
 - Submit: upsert profile; redirect to `/profile` with refresh
 - Button label: “Save changes” when editing, “Save profile” when new
+- **Delete account:** Section below the form with “Delete account” button. On click, a confirmation modal asks: “Are you sure? This will permanently delete your profile and video.” On confirm, client calls `DELETE /api/delete-account`; API (using service role) deletes the user’s video from Storage (`intros/{user_id}/intro.webm`), profile row, all connections involving the user, then `auth.admin.deleteUser(userId)`. Client signs out and redirects to `/`.
 
 ### 5. Browse Feed (`/browse`)
 
@@ -98,7 +99,7 @@ One role per user; stored in `profiles.role`.
 - Client: `BrowseFeed` receives `initialProfiles`, `currentUserId`, `initialPendingToUserIds`
 - Filters (client-side): role dropdown, industry text, skills comma-separated; filters the initial list
 - Each card: video (or “No video yet”), name (link to `/profile/[user_id]`), role, industry, short bio (truncated to 80 chars if longer), skills tags, “looking for” tags (up to 3 shown), interests tags (up to 4 shown), **Connect** button
-- **Connect:** If not logged in → redirect to `/login`. If own profile → “You” (disabled). If already sent request → “Pending” (disabled). Else: insert into `connections` (from_user_id, to_user_id, status `pending`); on success call `POST /api/notify-connection` with `{ toUserId }` (fire-and-forget); set local state to Pending. Duplicate insert (unique violation) also shows Pending
+- **Connect:** If not logged in → redirect to `/login`. If own profile → “You” (disabled). If already sent request → “Pending” (disabled). Else: insert into `connections` (from_user_id, to_user_id, status `pending`); on success call `POST /api/notify-connection` with `{ toUserId }` (fire-and-forget); set local state to Pending. Duplicate insert (unique violation) also shows Pending. If insert fails (e.g. RLS), an error message is shown under the button.
 - Video and name link to public profile
 
 ### 6. Public Profile (`/profile/[id]`)
@@ -107,18 +108,20 @@ One role per user; stored in `profiles.role`.
 - Server: fetches profile by `user_id`; if not found → `notFound()`. Fetches current user and checks if they already have a connection to this profile (initialPending)
 - Viewable without logging in
 - Renders: video intro (MirroredVideo, cache-busted with updated_at), display name, role, industry, short bio (if set), skills, “Looking for” tags (mentorship, job opportunities, etc.), “Interests” tags
-- **Connect:** Not logged in → “Log in to connect” (link to `/login`). Logged in + own profile → “You” (disabled). Already sent → “Pending” (disabled). Else → Connect button; on click same insert + notify as browse
+- **Connect:** Not logged in → “Log in to connect” (link to `/login`). Logged in + own profile → “You” (disabled). Already sent → “Pending” (disabled). Else → Connect button; on click same insert + notify as browse. On insert failure, an error message is shown.
 - 404: custom `not-found.tsx` in segment: “Profile not found” + link to Browse
 
 ### 7. Connection Requests (`/connections`)
 
 - Lists **pending** connection requests where the current user is the **recipient** (to_user_id)
 - Requires auth; redirects to `/login` if not logged in
+- Page uses `export const dynamic = 'force-dynamic'` so the list is never cached and new requests appear when the recipient visits
 - Server: fetches connections (to_user_id = me, status = pending); fetches sender profiles by from_user_id; merges for display
 - Client: list of cards with sender name (link to their public profile), role, industry; **Accept** and **Decline** buttons
 - **Accept:** Update connection to `status: 'accepted'`; refresh list
 - **Decline:** Update connection to `status: 'declined'`; refresh list
-- Empty state: “No pending requests” + link to Browse
+- Copy explains that when someone clicks Connect on the user’s profile or in Browse, they appear here
+- Empty state: “No pending requests” + short note that requests will show up when sent; link to Browse
 - Linked from header as “Requests”
 
 ### 8. Accepted Connections (`/connections/accepted`)
@@ -145,6 +148,15 @@ One role per user; stored in `profiles.role`.
 - Sends email via **Resend:** from “Peek &lt;onboarding@resend.dev&gt;”, to recipient email, subject “Someone wants to connect with you on Peek!”, body “Someone wants to connect with you on Peek! Log in to see who.”
 - Called from Connect flow (browse card and public profile) only after a **successful** new insert into `connections`
 - Requires env: `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`
+
+### 11. Delete Account
+
+- **API route:** `DELETE /api/delete-account` (no body; uses session cookie to identify user)
+- Requires authenticated user (server reads session via Supabase server client). Returns 401 if not logged in
+- Uses **Supabase service_role** client to perform, in order: (1) remove Storage object `intros/{user_id}/intro.webm` (ignore if missing), (2) delete all rows from `public.connections` where `from_user_id` or `to_user_id` equals the user, (3) delete the user’s row from `public.profiles`, (4) call `auth.admin.deleteUser(userId)`
+- On success returns `{ ok: true }`; on error returns `{ error: message }` with 500
+- **UI:** On My Profile (`/profile`), below the form, a “Delete account” button opens a confirmation modal: “Are you sure? This will permanently delete your profile and video.” Confirm calls the API; on success the client signs out and redirects to `/`
+- Requires env: `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL` (same as notify-connection)
 
 ---
 
@@ -208,7 +220,7 @@ One role per user; stored in `profiles.role`.
 |----------|---------|------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Client + server |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Client + server |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin (get user email) | `/api/notify-connection` only |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin (get user email, delete user) | `/api/notify-connection`, `/api/delete-account` |
 | `RESEND_API_KEY` | Resend send email | `/api/notify-connection` |
 
 Never expose the service_role key in the browser. Documented in `.env.local.example`; `.env*` in `.gitignore`.
@@ -221,6 +233,8 @@ Never expose the service_role key in the browser. Documented in `.env.local.exam
 peek/
 ├── app/
 │   ├── api/
+│   │   ├── delete-account/
+│   │   │   └── route.ts          # DELETE: remove user video, profile, connections, auth user (service role)
 │   │   └── notify-connection/
 │   │       └── route.ts          # POST: send connection email via Resend
 │   ├── auth/
@@ -311,7 +325,7 @@ peek/
 
 1. **Sign up → Confirm email (if on) → Profile setup → Browse → Connect** → Recipient gets email; recipient goes to Requests → Accept/Decline. After accepting, both users see each other on **Connections** (`/connections/accepted`).
 2. **Public profile:** Anyone can open `/profile/{user_id}`; logged-in users can Connect; not logged-in see “Log in to connect.”
-3. **My profile:** Logged-in user can view/edit at `/profile`; update video or fields and Save changes.
+3. **My profile:** Logged-in user can view/edit at `/profile`; update video or fields and Save changes. From the same page they can **Delete account** (confirmation modal → API deletes video, profile, connections, auth user → redirect to `/`).
 4. **Connections:** Logged-in user can open **Connections** in the header to see accepted connections as cards (video, name, role, industry, skills) with links to each person’s public profile.
 
 This document reflects the state of the Peek project as of the last update.
