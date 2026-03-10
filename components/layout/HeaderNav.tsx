@@ -81,6 +81,12 @@ export function HeaderNav({
       >
         Log in
       </Link>
+      <Link
+        href="/forgot-password"
+        className="text-sm text-cyan-400 hover:text-cyan-300"
+      >
+        Forgot password?
+      </Link>
       <LinkButton href="/signup">Sign up</LinkButton>
     </nav>
   );
